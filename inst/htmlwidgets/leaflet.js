@@ -1786,9 +1786,9 @@ methods.addGeoJSON = function (data, layerId, group, style) {
       };
       var popup = feature.properties.popup;
       if (typeof popup !== "undefined" && popup !== null) layer.bindPopup(popup);
-      layer.on("click", mouseHandler(self.id, layerId, group, "geojson_click", extraInfo), this);
-      layer.on("mouseover", mouseHandler(self.id, layerId, group, "geojson_mouseover", extraInfo), this);
-      layer.on("mouseout", mouseHandler(self.id, layerId, group, "geojson_mouseout", extraInfo), this);
+      layer.on("click", mouseHandler(self, layerId, group, "geojson_click", extraInfo), this);
+      layer.on("mouseover", mouseHandler(self, layerId, group, "geojson_mouseover", extraInfo), this);
+      layer.on("mouseout", mouseHandler(self, layerId, group, "geojson_mouseout", extraInfo), this);
     }
   });
   this.layerManager.addLayer(gjlayer, "geojson", layerId, group);
@@ -1827,9 +1827,9 @@ methods.addTopoJSON = function (data, layerId, group, style) {
       };
       var popup = feature.properties.popup;
       if (typeof popup !== "undefined" && popup !== null) layer.bindPopup(popup);
-      layer.on("click", mouseHandler(self.id, layerId, group, "topojson_click", extraInfo), this);
-      layer.on("mouseover", mouseHandler(self.id, layerId, group, "topojson_mouseover", extraInfo), this);
-      layer.on("mouseout", mouseHandler(self.id, layerId, group, "topojson_mouseout", extraInfo), this);
+      layer.on("click", mouseHandler(self, layerId, group, "topojson_click", extraInfo), this);
+      layer.on("mouseover", mouseHandler(self, layerId, group, "topojson_mouseover", extraInfo), this);
+      layer.on("mouseout", mouseHandler(self, layerId, group, "topojson_mouseout", extraInfo), this);
     }
   });
   global.omnivore.topojson.parse(data, null, gjlayer);
