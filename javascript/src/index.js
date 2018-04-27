@@ -29,18 +29,29 @@ window.LeafletWidget.utils.getCRS = getCRS;
 function updateBounds(map) {
   let id = map.getContainer().id;
   let bounds = map.getBounds();
-
-  Shiny.onInputChange(id + "_bounds", {
+  let bb = {
     north: bounds.getNorthEast().lat,
     east: bounds.getNorthEast().lng,
     south: bounds.getSouthWest().lat,
     west: bounds.getSouthWest().lng
-  });
-  Shiny.onInputChange(id + "_center", {
+  };
+  let center = {
     lng: map.getCenter().lng,
     lat: map.getCenter().lat
-  });
-  Shiny.onInputChange(id + "_zoom", map.getZoom());
+  };
+
+  // inform dashR about these events
+  if (typeof map.setProps === "function") {
+    map.setProps({"input_bounds": bb});
+    map.setProps({"input_center": center});
+    map.setProps({"input_zoom": map.getZoom()});
+  }
+
+  if (HTMLWidgets.shinyMode) {
+    Shiny.onInputChange(id + "_bounds", bb);
+    Shiny.onInputChange(id + "_center", center);
+    Shiny.onInputChange(id + "_zoom", map.getZoom());
+  }
 }
 
 function preventUnintendedZoomOnScroll(map) {
@@ -127,21 +138,25 @@ HTMLWidgets.widget({
         };
 
         // Check if the map is rendered statically (no output binding)
-        if (HTMLWidgets.shinyMode &&
-          /\bshiny-bound-output\b/.test(el.className)) {
+        let shinyBound = HTMLWidgets.shinyMode && /\bshiny-bound-output\b/.test(el.className);
+        let dashRBound = typeof el.setProps === "function";
+        if (shinyBound || dashRBound) {
 
           map.id = el.id;
+          map.setProps = el.setProps;
 
           // Store the map on the element so we can find it later by ID
           $(el).data("leaflet-map", map);
 
           // When the map is clicked, send the coordinates back to the app
           map.on("click", function(e) {
-            Shiny.onInputChange(map.id + "_click", {
+            let cd = {
               lat: e.latlng.lat,
               lng: e.latlng.lng,
               ".nonce": Math.random() // Force reactivity if lat/lng hasn't changed
-            });
+            };
+            if (shinyBound) Shiny.onInputChange(map.id + "_click", cd);
+            if (dashRBound) map.setProps({"input_click": cd});
           });
 
           let groupTimerId = null;
@@ -159,8 +174,9 @@ HTMLWidgets.widget({
                 }
                 groupTimerId = setTimeout(function() {
                   groupTimerId = null;
-                  Shiny.onInputChange(map.id + "_groups",
-                    map.layerManager.getVisibleGroups());
+                  let g = map.layerManager.getVisibleGroups();
+                  if (shinyBound) Shiny.onInputChange(map.id + "_groups", g);
+                  if (dashRBound) map.setProps({"input_groups": g});
                 }, 100);
               }
             });

@@ -536,18 +536,29 @@ window.LeafletWidget.utils.getCRS = _crs_utils.getCRS;
 function updateBounds(map) {
   var id = map.getContainer().id;
   var bounds = map.getBounds();
-
-  _shiny2.default.onInputChange(id + "_bounds", {
+  var bb = {
     north: bounds.getNorthEast().lat,
     east: bounds.getNorthEast().lng,
     south: bounds.getSouthWest().lat,
     west: bounds.getSouthWest().lng
-  });
-  _shiny2.default.onInputChange(id + "_center", {
+  };
+  var center = {
     lng: map.getCenter().lng,
     lat: map.getCenter().lat
-  });
-  _shiny2.default.onInputChange(id + "_zoom", map.getZoom());
+  };
+
+  // inform dashR about these events
+  if (typeof map.setProps === "function") {
+    map.setProps({ "input_bounds": bb });
+    map.setProps({ "input_center": center });
+    map.setProps({ "input_zoom": map.getZoom() });
+  }
+
+  if (_htmlwidgets2.default.shinyMode) {
+    _shiny2.default.onInputChange(id + "_bounds", bb);
+    _shiny2.default.onInputChange(id + "_center", center);
+    _shiny2.default.onInputChange(id + "_zoom", map.getZoom());
+  }
 }
 
 function preventUnintendedZoomOnScroll(map) {
@@ -636,21 +647,26 @@ _htmlwidgets2.default.widget({
         };
 
         // Check if the map is rendered statically (no output binding)
-        if (_htmlwidgets2.default.shinyMode && /\bshiny-bound-output\b/.test(el.className)) {
+        var shinyBound = _htmlwidgets2.default.shinyMode && /\bshiny-bound-output\b/.test(el.className);
+        var dashRBound = typeof el.setProps === "function";
+        if (shinyBound || dashRBound) {
           (function () {
 
             map.id = el.id;
+            map.setProps = el.setProps;
 
             // Store the map on the element so we can find it later by ID
             (0, _jquery2.default)(el).data("leaflet-map", map);
 
             // When the map is clicked, send the coordinates back to the app
             map.on("click", function (e) {
-              _shiny2.default.onInputChange(map.id + "_click", {
+              var cd = {
                 lat: e.latlng.lat,
                 lng: e.latlng.lng,
                 ".nonce": Math.random() // Force reactivity if lat/lng hasn't changed
-              });
+              };
+              if (shinyBound) _shiny2.default.onInputChange(map.id + "_click", cd);
+              if (dashRBound) map.setProps({ "input_click": cd });
             });
 
             var groupTimerId = null;
@@ -668,7 +684,9 @@ _htmlwidgets2.default.widget({
                 }
                 groupTimerId = setTimeout(function () {
                   groupTimerId = null;
-                  _shiny2.default.onInputChange(map.id + "_groups", map.layerManager.getVisibleGroups());
+                  var g = map.layerManager.getVisibleGroups();
+                  if (shinyBound) _shiny2.default.onInputChange(map.id + "_groups", g);
+                  if (dashRBound) map.setProps({ "input_groups": g });
                 }, 100);
               }
             });
@@ -1269,16 +1287,25 @@ var methods = {};
 exports.default = methods;
 
 
-function mouseHandler(mapId, layerId, group, eventName, extraInfo) {
+function mouseHandler(map, layerId, group, eventName, extraInfo) {
   return function (e) {
-    if (!_htmlwidgets2.default.shinyMode) return;
+    var shinyBound = _htmlwidgets2.default.shinyMode;
+    var dashRBound = typeof map.setProps === "function";
+    if (!shinyBound && !dashRBound) return;
 
     var eventInfo = _jquery2.default.extend({
       id: layerId,
       ".nonce": Math.random() // force reactivity
     }, group !== null ? { group: group } : null, e.target.getLatLng ? e.target.getLatLng() : e.latlng, extraInfo);
 
-    _shiny2.default.onInputChange(mapId + "_" + eventName, eventInfo);
+    if (shinyBound) {
+      _shiny2.default.onInputChange(map.id + "_" + eventName, eventInfo);
+    }
+    if (dashRBound) {
+      var eventObj = {};
+      eventObj["input_" + eventName] = eventInfo;
+      map.setProps(eventObj);
+    }
   };
 }
 
@@ -1430,10 +1457,10 @@ function addMarkers(map, df, group, clusterOptions, clusterId, markerFunc) {
               marker.bindTooltip(label);
             }
           }
-          marker.on("click", mouseHandler(this.id, thisId, thisGroup, "marker_click", extraInfo), this);
-          marker.on("mouseover", mouseHandler(this.id, thisId, thisGroup, "marker_mouseover", extraInfo), this);
-          marker.on("mouseout", mouseHandler(this.id, thisId, thisGroup, "marker_mouseout", extraInfo), this);
-          marker.on("dragend", mouseHandler(this.id, thisId, thisGroup, "marker_dragend", extraInfo), this);
+          marker.on("click", mouseHandler(this, thisId, thisGroup, "marker_click", extraInfo), this);
+          marker.on("mouseover", mouseHandler(this, thisId, thisGroup, "marker_mouseover", extraInfo), this);
+          marker.on("mouseout", mouseHandler(this, thisId, thisGroup, "marker_mouseout", extraInfo), this);
+          marker.on("dragend", mouseHandler(this, thisId, thisGroup, "marker_dragend", extraInfo), this);
         }).call(_this3);
       }
     };
@@ -1579,9 +1606,9 @@ function addLayers(map, category, df, layerFunc) {
               }
             }
           }
-          layer.on("click", mouseHandler(_this4.id, thisId, thisGroup, category + "_click"), _this4);
-          layer.on("mouseover", mouseHandler(_this4.id, thisId, thisGroup, category + "_mouseover"), _this4);
-          layer.on("mouseout", mouseHandler(_this4.id, thisId, thisGroup, category + "_mouseout"), _this4);
+          layer.on("click", mouseHandler(_this4, thisId, thisGroup, category + "_click"), _this4);
+          layer.on("mouseover", mouseHandler(_this4, thisId, thisGroup, category + "_mouseover"), _this4);
+          layer.on("mouseout", mouseHandler(_this4, thisId, thisGroup, category + "_mouseout"), _this4);
           var highlightStyle = df.get(i, "highlightOptions");
 
           if (!_jquery2.default.isEmptyObject(highlightStyle)) {

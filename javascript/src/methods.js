@@ -14,9 +14,11 @@ let methods = {};
 export default methods;
 
 
-function mouseHandler(mapId, layerId, group, eventName, extraInfo) {
+function mouseHandler(map, layerId, group, eventName, extraInfo) {
   return function(e) {
-    if (!HTMLWidgets.shinyMode) return;
+    let shinyBound = HTMLWidgets.shinyMode;
+    let dashRBound = typeof map.setProps === "function";
+    if (!shinyBound && !dashRBound) return;
 
     let eventInfo = $.extend(
       {
@@ -28,7 +30,14 @@ function mouseHandler(mapId, layerId, group, eventName, extraInfo) {
       extraInfo
     );
 
-    Shiny.onInputChange(mapId + "_" + eventName, eventInfo);
+    if (shinyBound) {
+      Shiny.onInputChange(map.id + "_" + eventName, eventInfo);
+    }
+    if (dashRBound) {
+      let eventObj = {};
+      eventObj["input_" + eventName] = eventInfo;
+      map.setProps(eventObj);
+    }
   };
 }
 
@@ -185,10 +194,10 @@ function addMarkers(map, df, group, clusterOptions, clusterId, markerFunc) {
               marker.bindTooltip(label);
             }
           }
-          marker.on("click", mouseHandler(this.id, thisId, thisGroup, "marker_click", extraInfo), this);
-          marker.on("mouseover", mouseHandler(this.id, thisId, thisGroup, "marker_mouseover", extraInfo), this);
-          marker.on("mouseout", mouseHandler(this.id, thisId, thisGroup, "marker_mouseout", extraInfo), this);
-          marker.on("dragend", mouseHandler(this.id, thisId, thisGroup, "marker_dragend", extraInfo), this);
+          marker.on("click", mouseHandler(this, thisId, thisGroup, "marker_click", extraInfo), this);
+          marker.on("mouseover", mouseHandler(this, thisId, thisGroup, "marker_mouseover", extraInfo), this);
+          marker.on("mouseout", mouseHandler(this, thisId, thisGroup, "marker_mouseout", extraInfo), this);
+          marker.on("dragend", mouseHandler(this, thisId, thisGroup, "marker_dragend", extraInfo), this);
         }).call(this);
       }
     }
@@ -352,9 +361,9 @@ function addLayers(map, category, df, layerFunc) {
             }
           }
         }
-        layer.on("click", mouseHandler(this.id, thisId, thisGroup, category + "_click"), this);
-        layer.on("mouseover", mouseHandler(this.id, thisId, thisGroup, category + "_mouseover"), this);
-        layer.on("mouseout", mouseHandler(this.id, thisId, thisGroup, category + "_mouseout"), this);
+        layer.on("click", mouseHandler(this, thisId, thisGroup, category + "_click"), this);
+        layer.on("mouseover", mouseHandler(this, thisId, thisGroup, category + "_mouseover"), this);
+        layer.on("mouseout", mouseHandler(this, thisId, thisGroup, category + "_mouseout"), this);
         let highlightStyle = df.get(i,"highlightOptions");
 
         if(!$.isEmptyObject(highlightStyle)) {
