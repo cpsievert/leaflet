@@ -905,7 +905,7 @@ methods.addScaleBar = function(options) {
 
 methods.removeScaleBar = function() {
   if (this.currentScaleBar) {
-    this.currentScaleBar.removeFrom(this);
+    this.currentScaleBar.remove();
     this.currentScaleBar = null;
   }
 };
@@ -1347,4 +1347,11 @@ methods.removeSelect = function() {
     this.removeControl(this._selectButton);
     this._selectButton = null;
   }
+};
+
+
+
+methods.createMapPane = function (name, zIndex) {
+  this.createPane(name);
+  this.getPane(name).style.zIndex = zIndex;
 };
